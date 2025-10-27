@@ -26,7 +26,7 @@ Perfect for developers, sysadmins, or anyone who wants a **live dashboard on the
 <p align="center">
   <img src="https://i.imgur.com/ZyfixaL.png" alt="DeskInfo Screenshot" width="800"/>
   <br>
-  <em>See an exemple</em>
+  <em>See an example</em>
 </p>
 
 ---
