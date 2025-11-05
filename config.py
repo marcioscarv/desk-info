@@ -1,14 +1,14 @@
 # --------------------------------------------------------------
 # Configuration constants
 # --------------------------------------------------------------
-UPDATE_INTERVAL_MS = 2000
+UPDATE_INTERVAL_MS = 1000
 FONT_FAMILY = "Consolas"
-FONT_SIZE = 11
+FONT_SIZE = 10
 GAP_X = 30
 GAP_Y = 30
 COLOR_DEFAULT = "white"
 COLOR_HIGHLIGHT = "dodgerblue"
-TRANSPARENT_COLOR = "black"
+TRANSPARENT_COLOR = "white"
 MUTEX_NAME = "DeskInfo_SingleInstance_Mutex"
 SEPARATOR = "-" * 50
 
