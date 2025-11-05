@@ -1,87 +1,100 @@
-import tkinter as tk
-from config import UPDATE_INTERVAL_MS, FONT_FAMILY, FONT_SIZE, COLOR_DEFAULT, COLOR_HIGHLIGHT, TRANSPARENT_COLOR, GAP_X, GAP_Y
+from PyQt6.QtWidgets import QApplication, QLabel
+from PyQt6.QtCore import Qt, QTimer, QPoint
+from PyQt6.QtGui import QFont, QColor, QPainter, QFontMetrics
+import sys
 from utils import get_system_info_text
+from config import UPDATE_INTERVAL_MS, FONT_FAMILY, FONT_SIZE, COLOR_DEFAULT, COLOR_HIGHLIGHT, GAP_X, GAP_Y
+
+
+class TransparentLabel(QLabel):
+    def __init__(self):
+        super().__init__()
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint
+        )
+        self.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+
+        # Fontes
+        self.font_main = QFont(FONT_FAMILY, FONT_SIZE)
+        self.font_title = QFont(FONT_FAMILY, 16, QFont.Weight.Bold)
+
+        # Cores
+        self.color_default = QColor(COLOR_DEFAULT)
+        self.color_highlight = QColor(COLOR_HIGHLIGHT)
+
+        self.text_data = ""
+
+    def set_info_text(self, info_text: str):
+        self.text_data = info_text
+        self.update()
+
+    def paintEvent(self, event):
+        if not self.text_data:
+            return
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+
+        lines = self.text_data.splitlines()
+
+        # Margens
+        margin_x = 15
+        y = 15  # Margem superior
+        line_spacing = 1  # Espaçamento reduzido entre linhas
+
+        for i, line in enumerate(lines):
+            if i == 0:
+                painter.setFont(self.font_title)
+                color = self.color_highlight
+            elif line.strip("- ") == "":
+                painter.setFont(self.font_main)
+                color = self.color_highlight
+            else:
+                painter.setFont(self.font_main)
+                color = self.color_default
+
+            # Desenhar contorno sutil
+            pen_outline = QColor(0, 0, 0)
+            painter.setPen(pen_outline)
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                painter.drawText(margin_x + dx, y + dy, line)
+
+            painter.setPen(color)
+            painter.drawText(margin_x, y, line)
+            y += QFontMetrics(painter.font()).height() + line_spacing
+
+        painter.end()
+
 
 def create_gui():
-    """Set up and run the Tkinter GUI."""
-    root = tk.Tk()
-    root.title("Desk Info")
-    root.config(bg=TRANSPARENT_COLOR)
-    root.overrideredirect(True)
+    app = QApplication(sys.argv)
+    label = TransparentLabel()
+    label.setWindowTitle("Desk Info")
 
-    try:
-        root.wm_attributes("-transparentcolor", TRANSPARENT_COLOR)
-    except Exception:
-        pass
+    def update_info():
+        text = get_system_info_text()
+        label.set_info_text(text)
 
-    font_config = (FONT_FAMILY, FONT_SIZE)
-    info_label = tk.Text(
-        root,
-        width=50,
-        font=font_config,
-        fg=COLOR_DEFAULT,
-        bg=TRANSPARENT_COLOR,
-        padx=5,
-        pady=5,
-        highlightthickness=0,
-        borderwidth=0,
-        cursor="arrow"
-    )
-    info_label.pack()
+        # Ajusta dinamicamente o tamanho da janela ao texto
+        fm = QFontMetrics(label.font_main)
+        width = max(fm.horizontalAdvance(line) for line in text.splitlines()) + 40
+        height = len(text.splitlines()) * (fm.height() + 2) + 30
+        label.resize(width, height)
 
-    info_label.tag_configure('nodename_style',
-                            foreground=COLOR_HIGHLIGHT,
-                            font=(FONT_FAMILY, 16, 'bold'),
-                            justify='center')
+        # Posição — canto superior direito
+        screen = app.primaryScreen().availableGeometry()
+        x = screen.width() - width - GAP_X
+        y = GAP_Y
+        label.move(QPoint(x, y))
 
-    info_label.tag_configure('separator_style',
-                            foreground=COLOR_HIGHLIGHT,
-                            font=(FONT_FAMILY, FONT_SIZE),
-                            justify='center')
+    update_info()
+    timer = QTimer()
+    timer.timeout.connect(update_info)
+    timer.start(UPDATE_INTERVAL_MS)
 
-    def block_event(event):
-        return "break"
+    label.show()
+    sys.exit(app.exec())
 
-    blocked_events = ("<Button-1>", "<B1-Motion>", "<Control-c>", "<Control-C>",
-                      "<Control-x>", "<Control-v>", "<Key>")
-    for ev in blocked_events:
-        info_label.bind(ev, block_event)
 
-    def update_info_label():
-        try:
-            info_text = get_system_info_text()
-            lines = info_text.splitlines()
-
-            if len(lines) >= 2:
-                nodename = lines[0]
-                separator_line = lines[1]
-                rest_of_text = "\n".join(lines[2:]) if len(lines) > 2 else ""
-            elif len(lines) == 1:
-                nodename = lines[0]
-                separator_line = "-" * 50
-                rest_of_text = ""
-            else:
-                nodename = "N/A"
-                separator_line = "-" * 50
-                rest_of_text = ""
-
-            info_label.delete('1.0', tk.END)
-            info_label.insert('1.0', f"{nodename}\n", 'nodename_style')
-            info_label.insert(tk.END, f"{separator_line}\n", 'separator_style')
-            if rest_of_text:
-                info_label.insert(tk.END, rest_of_text)
-        except Exception:
-            info_label.delete('1.0', tk.END)
-            info_label.insert('1.0', "Erro ao coletar informações")
-
-        root.after(UPDATE_INTERVAL_MS, update_info_label)
-
-    root.update_idletasks()
-    screen_width = root.winfo_screenwidth()
-    window_width = root.winfo_width()
-    pos_x = screen_width - window_width - GAP_X
-    pos_y = GAP_Y
-    root.geometry(f"+{pos_x}+{pos_y}")
-
-    update_info_label()
-    root.mainloop()
+if __name__ == "__main__":
+    create_gui()
