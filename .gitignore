@@ -1,0 +1,17 @@
+# Build output
+/build-native/
+/dist-cpp/
+/release/
+
+# Editor settings
+/.vscode/
+/src/.vscode/
+
+# Generated and internal documentation
+/docs/rendered/
+/Documentacao_Tecnica_DeskInfo_NTISER_.docx
+/MARCA_NTISER_COLORIDO.png
+
+# Operating system files
+Thumbs.db
+Desktop.ini
