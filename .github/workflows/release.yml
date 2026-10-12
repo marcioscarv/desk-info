@@ -27,11 +27,14 @@ jobs:
           $tag = "v$version"
           "version=$version" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
-          gh release view $tag --json tagName *> $null
-          if ($LASTEXITCODE -eq 0) {
+          $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/tags/$tag"
+          $response = Invoke-WebRequest -Uri $uri -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json' } -SkipHttpErrorCheck
+          if ($response.StatusCode -eq 200) {
             'exists=true' >> $env:GITHUB_OUTPUT
-          } else {
+          } elseif ($response.StatusCode -eq 404) {
             'exists=false' >> $env:GITHUB_OUTPUT
+          } else {
+            throw "Falha ao consultar release: HTTP $($response.StatusCode)"
           }
 
       - name: Compilar
