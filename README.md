@@ -4,6 +4,10 @@ Overlay nativo e leve para exibir informações do Windows em tempo real sobre a
 área de trabalho. Esta versão substitui Python, PyQt6, `psutil` e `pywin32` por
 C++ e pelas APIs do próprio Windows.
 
+## Prévia
+
+![DeskInfo exibindo informações do sistema na área de trabalho](docs/preview.png)
+
 ## O que foi preservado
 
 - atualização de CPU, memória, discos e rede a cada segundo;

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(DeskInfo VERSION 2.2.0 LANGUAGES CXX RC)
+project(DeskInfo VERSION 2.3.0 LANGUAGES CXX RC)
+
+configure_file(src/version.rc.in "${CMAKE_CURRENT_BINARY_DIR}/version.rc" @ONLY)
 
 add_executable(DeskInfo WIN32
     src/app.cpp
@@ -8,6 +10,7 @@ add_executable(DeskInfo WIN32
     src/system_info.cpp
     src/template_renderer.cpp
     src/DeskInfo.rc
+    "${CMAKE_CURRENT_BINARY_DIR}/version.rc"
 )
 
 set_property(TARGET DeskInfo PROPERTY

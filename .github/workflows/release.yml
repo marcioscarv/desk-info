@@ -1,0 +1,92 @@
+name: Publicar versão Windows
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir versão
+        id: version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $project = Get-Content CMakeLists.txt -Raw
+          if ($project -notmatch 'project\(DeskInfo VERSION ([0-9]+\.[0-9]+\.[0-9]+) LANGUAGES') {
+            throw 'Versão do projeto não encontrada.'
+          }
+          $version = $Matches[1]
+          $tag = "v$version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          gh release view $tag --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) {
+            'exists=true' >> $env:GITHUB_OUTPUT
+          } else {
+            'exists=false' >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Compilar
+        if: steps.version.outputs.exists == 'false'
+        shell: pwsh
+        run: |
+          cmake -S . -B build-native -G 'Visual Studio 17 2022' -A x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build-native --config Release --parallel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --install build-native --config Release --prefix dist-cpp
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Montar e conferir pacote
+        if: steps.version.outputs.exists == 'false'
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          $archive = "release/DeskInfo-$tag-windows-x64.zip"
+          New-Item -ItemType Directory -Path release -Force | Out-Null
+          Compress-Archive -LiteralPath dist-cpp/DeskInfo.exe, dist-cpp/config.cfg, dist-cpp/readme.txt -DestinationPath $archive
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+          try {
+            $entries = @($zip.Entries | ForEach-Object FullName | Sort-Object)
+            if (($entries -join ',') -ne 'config.cfg,DeskInfo.exe,readme.txt') {
+              throw "Conteúdo inesperado no pacote: $($entries -join ', ')"
+            }
+          } finally {
+            $zip.Dispose()
+          }
+          $hash = (Get-FileHash -Algorithm SHA256 $archive).Hash
+          $notes = @(
+            "## DeskInfo ${{ steps.version.outputs.version }}"
+            ''
+            'Aplicativo nativo para Windows x64. O config.cfg permite ajustar a cor do título e dos separadores com Main_color.'
+            ''
+            'Baixe o ZIP, extraia os três arquivos na mesma pasta e execute DeskInfo.exe.'
+            ''
+            "SHA-256: $hash"
+          )
+          Set-Content -Path release-notes.md -Value ($notes -join [Environment]::NewLine) -Encoding utf8
+
+      - name: Publicar release
+        if: steps.version.outputs.exists == 'false'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          git fetch --tags
+          if (-not (git tag --list $tag)) {
+            git tag $tag
+            git push origin $tag
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          gh release create $tag "release/DeskInfo-$tag-windows-x64.zip" --title "DeskInfo ${{ steps.version.outputs.version }}" --notes-file release-notes.md --verify-tag
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
